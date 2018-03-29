@@ -1,0 +1,150 @@
+﻿<!DOCTYPE html>
+<head>
+    <title>Webifi Javascript Tutorial</title>
+    <script type="text/javascript" src="https://www.webifi.me/js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="https://www.webifi.me/Webifi-min-1.0.js"></script>
+    <script type="text/javascript">
+        //user JavaScript
+        var webifi;  //this will reference the Webifi library
+        var recData = "";
+        var messages = "";
+
+        //this function runs when the page is finished loading
+        $(function () {
+            webifi = WebifiCreate();
+            var networkNames = [];
+
+            //set name for discovery by other devices
+            webifi.name = "Javascript tutorial";
+
+            //set callbacks
+            webifi.SetDataReceivedCallback(RecDataCallback);
+            webifi.SetConnectionStatusCallback(ConnectionMessageCallback);
+            webifi.SetErrorCallback(ErrorCallback);
+            //create the webifi control
+            webifi.WebifiControl("webifiControl");
+            //see if previously entered information can be loaded from html5 local storage
+            if (typeof (Storage) !== "undefined") {
+                if (localStorage.webifiConnectName !== undefined) {
+                    webifi.SetConnectName(localStorage.webifiConnectName);
+                }
+                if (localStorage.webifiConnectPassword !== undefined) {
+                    webifi.SetConnectPassword(localStorage.webifiConnectPassword);
+                }
+                if (localStorage.webifiNetworkNames !== undefined) {
+                    networkNames = localStorage.webifiNetworkNames.split("\n");
+                }
+                else {
+                    networkNames.push("network 1");  //default to "network 1"
+                }
+            }
+            else {
+                networkNames.push("network 1");  //default to "network 1"
+            }
+            webifi.SetNetworkNames(networkNames);
+        });
+
+        function AddMessage(message) {
+            messages += message + "\n";
+            $('#textAreaMessages').val(messages);
+        }
+
+        //called when the send data button is clicked
+        function SendData() {
+            var val;
+            var sendData = webifi.CreateSendData();
+
+            sendData.data = $('#textSendData').val();
+            sendData.dataType = "data";
+            var errorCode = webifi.SendData(sendData);
+            if (errorCode === "0") {
+                //data was sent
+                AddMessage("Data sent")
+            } else {
+                messages += "Send Error: " + errorCode + "\n";
+                messages += webifi.ConvertErrorCodeToString(errorCode) + "\n";
+                AddMessage(messages)
+            }
+        }
+
+        //callback functions
+        function RecDataCallback(data, dataType, from, sender) {
+            //check if a discovery response was received
+            if (dataType == "Discovery Response") {
+                AddMessage("Device Discovered: " + data + ", ID: " + from);
+            }
+            else {
+                recData += data;
+                $('#textAreaRecData').val(recData);
+            }
+        }
+
+        function ErrorCallback(errorCode, sender) {
+            messages += "Error: " + errorCode + "\n";
+            messages += webifi.ConvertErrorCodeToString(errorCode) + "\n";
+            $('#textAreaMessages').val(messages);
+        }
+
+        function ConnectionMessageCallback(connected, sender) {
+            if (connected) {
+                messages += "Connection successful\n";
+                //after successful connect store Webifi variables to local storage to make it easier to connect next time
+                if ($('#checkSaveConnectionDetails').prop('checked')) {
+                    if (typeof (Storage) !== "undefined") {
+                        localStorage.setItem("webifiConnectName", webifi.GetConnectName());
+                        localStorage.setItem("webifiConnectPassword", webifi.GetConnectPassword());
+                        //convert network names array into string for storing
+                        var networkNamesArray = webifi.GetNetworkNames();
+                        var networkNamesStr = "";
+                        var i;
+                        for (i = 0; i < networkNamesArray.length; i++) {
+                            if (i > 0) {
+                                networkNamesStr += "\n";
+                            }
+                            networkNamesStr += networkNamesArray[i];
+                        }
+                        localStorage.setItem("webifiNetworkNames", networkNamesStr);
+                    }
+                }
+            } else {
+                messages += "Connection failed\n";
+            }
+            $('#textAreaMessages').val(messages);
+        }
+
+        function ClearRecData() {
+            $('#textAreaRecData').val("");
+            recData = "";
+        }
+
+        function ClearMessages() {
+            $('#textAreaMessages').val("");
+            messages = "";
+        }
+
+        function SendDiscovery() {
+            webifi.SendDiscovery();
+        }
+    </script>
+    <style>
+        .webifiSpacing {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Webifi Javascript Tutorial</h1>
+    <div id="webifiControl"></div>
+    <input type="checkbox" id="checkSaveConnectionDetails" />Save connection details<br /><br />
+    Send data:<br />
+    <input type="text" id="textSendData" value="test data" size="40" class="webifiSpacing" /><br />
+    <button type="button" onclick="SendData()" id="buttonSendData">Send data</button>&nbsp;&nbsp;&nbsp;
+    <button type="button" onclick="SendDiscovery()" id="buttonDiscovery">Discover</button><br /><br />
+    Received data:<br />
+    <textarea id="textAreaRecData" style="height: 100px; width: 500px;" rows="10"></textarea>
+    <br /><button type="button" onclick="ClearRecData()" id="buttonClearRecData">Clear</button><br /><br />
+    Messages:<br />
+    <textarea id="textAreaMessages" style="height: 100px; width: 500px;" rows="10"></textarea>
+    <br /><button type="button" onclick="ClearMessages()" id="buttonClearMessages">Clear</button>
+</body>
+</html>
